@@ -1,7 +1,9 @@
 package comptoirs.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
+import comptoirs.entity.Ligne;
 import org.springframework.stereotype.Service;
 
 import comptoirs.dao.ClientRepository;
@@ -14,7 +16,7 @@ public class CommandeService {
     // La couche "Service" utilise la couche "Accès aux données" pour effectuer les traitements
     private final CommandeRepository commandeDao;
     private final ClientRepository clientDao;
-    
+
 
     // @Autowired
     // La couche "Service" utilise la couche "Accès aux données" pour effectuer les traitements
@@ -22,12 +24,14 @@ public class CommandeService {
         this.commandeDao = commandeDao;
         this.clientDao = clientDao;
     }
+
     /**
      * Service métier : Enregistre une nouvelle commande pour un client connu par sa clé
      * Règles métier :
      * - le client doit exister
      * - On initialise l'adresse de livraison avec l'adresse du client
      * - Si le client a déjà commandé plus de 100 articles, on lui offre une remise de 15%
+     *
      * @param clientCode la clé du client
      * @return la commande créée
      */
@@ -57,13 +61,29 @@ public class CommandeService {
      * - la commande ne doit pas être déjà envoyée (le champ 'envoyeele' doit être null)
      * - On met à jour la date d'expédition (envoyeele) avec la date du jour
      * - Pour chaque produit commandé, décrémente la quantité en stock (Produit.unitesEnStock)
-     *   de la quantité commandée
+     * de la quantité commandée
+     *
      * @param commandeNum la clé de la commande
      * @return la commande mise à jour
      */
     @Transactional
     public Commande enregistreExpédition(Integer commandeNum) {
         // TODO : implémenter ce service métier
-        throw new UnsupportedOperationException("Pas encore implémenté");
+        // La commande doit exister
+        var commande = commandeDao.findById(commandeNum).orElseThrow();
+
+        if (commande == null) {
+            throw new IllegalArgumentException("La commande n'existe pas");
+        }
+        if (commande.getEnvoyeele() != null) {
+            throw new IllegalStateException("La commande a déjà été envoyée");
+        }
+        commande.setEnvoyeele(LocalDate.now());
+        for (var ligne : commande.getLignes()) {
+            var produit = ligne.getProduit();
+            produit.setUnitesEnStock(produit.getUnitesEnStock() - ligne.getQuantite());
+        }
+        return commande;
+
     }
 }
